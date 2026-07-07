@@ -2,8 +2,15 @@
 # api/routes.py  —  Endpoints FastAPI
 # ============================================================
 import os
+import sys
 import tempfile
 from typing import Optional
+
+# Ver la nota equivalente en main.py: evita que un print() con emoji crashee
+# el proceso si la salida del servidor se redirige a un log sin UTF-8.
+if sys.stdout.encoding is not None and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 import uvicorn
 from fastapi import FastAPI, File, UploadFile
@@ -12,7 +19,10 @@ from fastapi.responses import JSONResponse
 from config.settings import PLANT_DESCRIPTIONS
 from services.classifier import CoffeePlantClassifier
 
-BASE_DIR = os.environ.get("COFFEE_BASE_DIR", "M:/Proyecto Imagenes/datasets")
+# Mismo criterio que main.py: datasets/ junto a la raíz del proyecto por
+# defecto, salvo que COFFEE_BASE_DIR indique otra ubicación.
+_PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.environ.get("COFFEE_BASE_DIR", os.path.join(_PROJECT_DIR, "datasets"))
 
 app = FastAPI(
     title="Coffee Plant Classifier API",

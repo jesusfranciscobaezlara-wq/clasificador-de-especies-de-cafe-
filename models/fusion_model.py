@@ -30,11 +30,16 @@ class FusionCoffeeModel(nn.Module):
         for param in self.backbone.parameters():
             param.requires_grad = False
 
-        # Descongelar layer3 y layer4 para fine‑tuning más profundo
-        # for param in self.backbone.layer3.parameters():
-        #     param.requires_grad = True
+        # Solo se descongela layer4: permite adaptar las features visuales
+        # de más alto nivel a hojas de café sin reentrenar toda la red
+        # preentrenada en ImageNet (más rápido y con menos riesgo de overfitting).
         for param in self.backbone.layer4.parameters():
             param.requires_grad = True
+
+        # Las botánicas llegan en escalas muy distintas entre sí (ratios ~0-1,
+        # conteos de píxeles, grados) y frente al embedding visual ya normalizado
+        # por ImageNet; sin esto podían dominar o quedar opacadas en la fusión.
+        self.bot_norm = nn.BatchNorm1d(bot_feat_dim)
 
         # Capa de fusión: concatena embedding (512) + bot_feat_dim
         fusion_dim = in_features + bot_feat_dim
@@ -49,5 +54,6 @@ class FusionCoffeeModel(nn.Module):
         # x: [batch, 3, H, W] (imagen normalizada)
         # bot_feats: [batch, bot_feat_dim]
         visual_embed = self.backbone(x)          # [batch, 512]
-        combined = torch.cat([visual_embed, bot_feats], dim=1)  # [batch, 512+bot_feat_dim]
+        bot_normed = self.bot_norm(bot_feats)
+        combined = torch.cat([visual_embed, bot_normed], dim=1)  # [batch, 512+bot_feat_dim]
         return self.classifier(combined)

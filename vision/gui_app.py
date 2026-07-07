@@ -4,9 +4,16 @@
 # ============================================================
 import os
 import sys
+
+# Ver la nota equivalente en main.py: evita que un print() con emoji crashee
+# el programa si la consola no está en UTF-8.
+if sys.stdout.encoding is not None and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 import random
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk   # ← añadido ttk
+from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 import cv2
 import threading
@@ -503,7 +510,7 @@ class ImageTestPage(tk.Frame):
         self.entry_num = tk.Entry(ctrl_frame, width=5, font=("Segoe UI", 10),
                                   bg="#0f0f23", fg="white", insertbackground="white")
         self.entry_num.pack(side=tk.LEFT, padx=5)
-        # NUEVO: Enlazar tecla Enter para cargar imagen por número
+        # Enter en el campo de número también dispara la carga de la imagen
         self.entry_num.bind("<Return>", lambda event: self.load_image_by_number())
 
         self.btn_load_num = tk.Button(ctrl_frame, text="Cargar #", font=("Segoe UI", 10),
@@ -582,7 +589,7 @@ class ImageTestPage(tk.Frame):
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self._mostrar_imagen(img_rgb, self.lbl_test_img)
         self.btn_predict.config(state=tk.NORMAL)
-        # NUEVO: Poner el foco en el botón Predecir para que Enter dispare la predicción
+        # Foco en el botón Predecir para que Enter dispare la predicción directamente
         self.btn_predict.focus_set()
         # Limpiar resultados anteriores
         self.lbl_pred.config(text="Predicción: ---")

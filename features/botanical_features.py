@@ -75,14 +75,14 @@ def extract_botanical_features(
     densidad_venas = np.count_nonzero(edges_masked) / total_pixels if total_pixels > 0 else 0.0
     feat.append(densidad_venas)
     
-    # Histograma de orientaciones de los bordes (18 bins, 0-180°)
+    # Histograma de orientaciones de los bordes (24 bins, 0-180°)
     gx = cv2.Sobel(gray_eq, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(gray_eq, cv2.CV_32F, 0, 1, ksize=3)
     mag, ang = cv2.cartToPolar(gx, gy)
     ang_deg = np.degrees(ang) % 180
     hist_angs, _ = np.histogram(ang_deg[mask > 0], bins=24, range=(0, 180))
     hist_angs = hist_angs.astype(np.float32) / (hist_angs.sum() + 1e-6)
-    feat.extend(hist_angs)   # 18 valores
+    feat.extend(hist_angs)   # 24 valores
     
     # ------------------------------------------------------------------
     # 3. ESTÍPULAS (protección basal) si se proporciona el punto base

@@ -15,7 +15,7 @@ class LeafMeasurement:
     area_cm2: float = 0.0
     color: str = "DESCONOCIDO"
     tamano: str = "N/H"
-    # ── NUEVO: puntos reales para dibujar (coordenadas globales) ──
+    # Puntos reales para dibujar el overlay (coordenadas globales del frame)
     pt_apice:   tuple | None = None   # extremo distal del limbo
     pt_base:    tuple | None = None   # extremo proximal del limbo
     pt_ancho_L: tuple | None = None   # borde izquierdo del ancho máximo
@@ -78,7 +78,7 @@ class LeafDetector:
         return cnt, rect_info, measurement
 
     # ──────────────────────────────────────────────────────────────
-    #  NUEVO: Separar pecíolo del limbo foliar
+    #  Separar pecíolo del limbo foliar
     # ──────────────────────────────────────────────────────────────
     def _separar_peciolo(self, cnt: np.ndarray, umbral_rel: float = 0.08) -> np.ndarray:
         """
@@ -138,7 +138,7 @@ class LeafDetector:
         return pts_limbo   # contorno filtrado, sin hull
 
     # ──────────────────────────────────────────────────────────────
-    #  NUEVO: Medir largo ápice→base y ancho máximo del limbo
+    #  Medir largo ápice→base y ancho máximo del limbo
     # ──────────────────────────────────────────────────────────────
     def _medir_limbo(
         self,
@@ -241,7 +241,7 @@ class LeafDetector:
         return box_global, rw, rh, angle, center_global
 
     # ──────────────────────────────────────────────────────────────
-    #  Segmentación de color de hoja  (sin cambios)
+    #  Segmentación de color de hoja
     # ──────────────────────────────────────────────────────────────
     def _detectar_hoja_multicolor(self, roi: np.ndarray) -> np.ndarray:
         hsv  = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)

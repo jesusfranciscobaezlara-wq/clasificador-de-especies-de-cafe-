@@ -4,13 +4,22 @@
 # ============================================================
 import json
 import os
+import sys
+
+# Ver la nota equivalente en main.py: evita que un print() con emoji crashee
+# el programa si la consola no está en UTF-8.
+if sys.stdout.encoding is not None and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 
-# Ruta base configurable por variable de entorno o argumento
-BASE_DIR    = os.environ.get("COFFEE_BASE_DIR", "D:/coffee_classifier/datasets")
+# Mismo criterio que el resto del proyecto: datasets/ junto a la raíz por
+# defecto, salvo que COFFEE_BASE_DIR indique otra ubicación.
+_PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR    = os.environ.get("COFFEE_BASE_DIR", os.path.join(_PROJECT_DIR, "datasets"))
 RESULTS_DIR = os.path.join(BASE_DIR, "Results")
 LOGS_DIR    = os.path.join(RESULTS_DIR, "logs")
 

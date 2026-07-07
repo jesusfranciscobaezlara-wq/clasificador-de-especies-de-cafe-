@@ -4,8 +4,10 @@
 import os
 import time
 import json
+import math
 
 import cv2
+import numpy as np
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
@@ -156,7 +158,6 @@ class CameraSession:
 
     # ------------------------------------------------------------------
     def _draw_leaf_overlay(self, frame):
-        import numpy as np
         display = frame.copy()
 
         if self.rect_info and self.aruco.area_deteccion:
@@ -177,7 +178,7 @@ class CameraSession:
 
             m = self.measurement
 
-            # ── FIX: línea de LARGO  ápice → base  (azul) ──
+            # ── Línea de LARGO  ápice → base  (azul) ──
             if m.pt_apice and m.pt_base:
                 cv2.line(display, m.pt_apice, m.pt_base, (255, 0, 0), 3)
                 mid_largo = (
@@ -191,7 +192,6 @@ class CameraSession:
                 )
             else:
                 # fallback: eje del bounding box si aún no hay puntos
-                import math
                 angle_rad = math.radians(angle)
                 dx, dy    = math.cos(angle_rad), math.sin(angle_rad)
                 hw        = w / 2
@@ -199,7 +199,7 @@ class CameraSession:
                 p2 = (int(center[0] + dx * hw), int(center[1] + dy * hw))
                 cv2.line(display, p1, p2, (255, 0, 0), 3)
 
-            # ── FIX: línea de ANCHO MÁXIMO perpendicular (rojo) ──
+            # ── Línea de ANCHO MÁXIMO perpendicular (rojo) ──
             if m.pt_ancho_L and m.pt_ancho_R:
                 cv2.line(display, m.pt_ancho_L, m.pt_ancho_R, (0, 0, 255), 3)
                 mid_ancho = (
@@ -212,7 +212,6 @@ class CameraSession:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2,
                 )
             else:
-                import math
                 angle_rad = math.radians(angle)
                 dx, dy = math.cos(angle_rad), math.sin(angle_rad)
                 px, py = -dy, dx

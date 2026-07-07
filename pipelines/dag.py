@@ -7,7 +7,10 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 
-BASE_DIR = os.environ.get("COFFEE_BASE_DIR", "M:/Proyecto Imagenes/datasets")
+# Mismo criterio que main.py y api/routes.py: datasets/ junto a la raíz del
+# proyecto por defecto, salvo que COFFEE_BASE_DIR indique otra ubicación.
+_PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.environ.get("COFFEE_BASE_DIR", os.path.join(_PROJECT_DIR, "datasets"))
 
 default_args = {
     "owner": "coffee_classifier",

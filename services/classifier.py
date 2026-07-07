@@ -8,6 +8,7 @@ import joblib
 import numpy as np
 import torch
 import cv2
+import matplotlib.pyplot as plt
 
 from config.settings import (
     ERROR_THRESHOLD_FOR_RETRAIN, PLANT_DESCRIPTIONS, get_display_name,
@@ -18,6 +19,9 @@ from training.trainer import ModelTrainer
 from features.botanical_features import get_contour_and_mask, estimate_base_point, extract_botanical_features
 from models.fusion_model import FusionCoffeeModel
 
+# Por debajo de esta confianza, _infer() devuelve "DESCONOCIDO" en vez de la
+# clase con mayor probabilidad: evita presentar como certera una predicción
+# que en realidad es una elección débil entre varias especies.
 CONFIDENCE_THRESHOLD = 0.35
 
 class CoffeePlantClassifier:
@@ -31,6 +35,12 @@ class CoffeePlantClassifier:
         self.retrain_count = 0
         self.idx_to_class = {}
         self._bot_feat_dim = 0
+
+        # Constantes de normalización de ImageNet (mismas que en entrenamiento):
+        # se precomputan una sola vez en vez de reconstruirlas en cada predicción.
+        device = self.trainer.device
+        self._norm_mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
+        self._norm_std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
 
         self._setup_folders()
         self._load_counters()
@@ -121,10 +131,8 @@ class CoffeePlantClassifier:
         bot_tensor = torch.from_numpy(bot_feat).unsqueeze(0).to(self.trainer.device)
 
         tensor = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).to(self.trainer.device)
-        # Normalización (igual que en entrenamiento)
-        mean = torch.tensor([0.485, 0.456, 0.406], device=self.trainer.device).view(1, 3, 1, 1)
-        std = torch.tensor([0.229, 0.224, 0.225], device=self.trainer.device).view(1, 3, 1, 1)
-        tensor = (tensor - mean) / std
+        # Normalización con las mismas constantes de ImageNet usadas en entrenamiento
+        tensor = (tensor - self._norm_mean) / self._norm_std
 
         with torch.no_grad():
             logits = self.trainer.model(tensor, bot_tensor)
@@ -280,8 +288,6 @@ class CoffeePlantClassifier:
             print(f"  Uso:               {info['uso']}")
 
     def _display_result(self, img_path, pred, proba, true_label):
-        import cv2
-        import matplotlib.pyplot as plt
         img_test = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
         file_name = os.path.basename(img_path)

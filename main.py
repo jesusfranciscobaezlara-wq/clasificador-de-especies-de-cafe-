@@ -5,6 +5,14 @@ import os
 import sys
 import traceback
 
+# El proyecto usa emojis en muchos print() (✅ ❌ ⚠️ etc.). Si la salida
+# estándar no está en UTF-8 (cmd.exe clásico, salida redirigida a archivo,
+# algunas consolas de CI), esos print() lanzan UnicodeEncodeError y crashean
+# el programa justo dentro de un bloque except. Forzamos UTF-8 al iniciar.
+if sys.stdout.encoding is not None and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 import cv2
 
 from services.classifier import CoffeePlantClassifier
@@ -12,7 +20,10 @@ from vision.camera import CameraSession
 from vision.measurement import calcular_medidas_imagen
 from config.settings import get_display_name
 
-BASE_DIR = os.environ.get("COFFEE_BASE_DIR", "D:/coffee_classifier/datasets")
+# Por defecto usa datasets/ junto al proyecto (portátil entre máquinas);
+# COFFEE_BASE_DIR permite apuntar a otra ubicación sin tocar el código.
+_PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.environ.get("COFFEE_BASE_DIR", os.path.join(_PROJECT_DIR, "datasets"))
 
 
 def build_classifier():

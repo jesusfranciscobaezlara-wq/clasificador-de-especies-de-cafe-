@@ -50,6 +50,9 @@ class ArucoCalibrator:
             if hasattr(self.params, 'cornerRefinementMethod'):
                 self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
+        # Distancia física real (en cm) entre los 4 marcadores del tablero de
+        # calibración; es la referencia para convertir píxeles a cm. Si se usa
+        # un tablero con otras medidas, estos dos valores deben actualizarse.
         self.distancia_horizontal_marcadores_cm = 23.5
         self.distancia_vertical_marcadores_cm = 17.5
 

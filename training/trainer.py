@@ -184,7 +184,7 @@ class ModelTrainer:
         return self.load_model_by_index(0)
 
     # ------------------------------------------------------------
-    # Métodos de entrenamiento (sin cambios significativos)
+    # Métodos de entrenamiento
     # ------------------------------------------------------------
     def _init_plot(self):
         if self.fig is not None and plt.fignum_exists(self.fig.number):
@@ -382,12 +382,20 @@ class ModelTrainer:
 
             train_dataset = CoffeePlantDataset(X_train_img, bot_train, y_train_labels, transform=self.train_transform)
             val_dataset   = CoffeePlantDataset(X_val_img,   bot_val,   y_val_labels,   transform=self.val_transform)
-            train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+            # Si el último batch quedara con una sola muestra, el BatchNorm1d de
+            # bot_norm no podría calcular varianza y fallaría en entrenamiento.
+            # Solo se descarta ese batch cuando sobra exactamente 1 imagen y aun
+            # así queda al menos un batch completo (nunca se queda en 0 batches).
+            remainder = len(train_dataset) % BATCH_SIZE
+            drop_last = remainder == 1 and len(train_dataset) > BATCH_SIZE
+            train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2, drop_last=drop_last)
             val_loader   = DataLoader(val_dataset,   batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
 
             num_classes = len(self.class_list)
 
-            # ---------- MODIFICACIÓN PARA RECONSTRUIR EL CLASIFICADOR SI CAMBIA LA DIMENSIÓN ----------
+            # El aprendizaje activo puede reentrenar sobre un conjunto de clases
+            # o una dimensión de features botánicas distinta a la del modelo
+            # cargado; hay que reconstruir classifier/bot_norm si no coinciden.
             if fine_tune and self.model is not None:
                 print("\n📌 Fine‑tuning desde modelo existente...")
                 expected_input_dim = 512 + self._bot_feat_dim
@@ -403,10 +411,11 @@ class ModelTrainer:
                         nn.Dropout(DROPOUT_RATE),
                         nn.Linear(256, num_classes)
                     )
+                    if self.model.bot_norm.num_features != self._bot_feat_dim:
+                        self.model.bot_norm = nn.BatchNorm1d(self._bot_feat_dim)
                     self.model = self.model.to(self.device)
                 else:
                     if current_output_dim != num_classes:
-                        in_feat = self.model.classifier[0].in_features
                         self.model.classifier[-1] = nn.Linear(256, num_classes)
                         self.model = self.model.to(self.device)
 
@@ -415,7 +424,6 @@ class ModelTrainer:
                 print("\n🏗️ Construyendo modelo de fusión (ResNet18 + características botánicas)...")
                 self.model = FusionCoffeeModel(num_classes=num_classes, bot_feat_dim=self._bot_feat_dim, pretrained=True).to(self.device)
                 lr = LEARNING_RATE
-            # ---------------------------------------------------------------------------------------
 
             self._init_plot()
             criterion = nn.CrossEntropyLoss()
@@ -560,7 +568,7 @@ class ModelTrainer:
         print(f"📊 Matriz de confusión guardada en: {out_path}")
 
     # ------------------------------------------------------------
-    # Métodos de persistencia (guardar/cargar) - compatibilidad
+    # Persistencia del modelo global (guardar/cargar)
     # ------------------------------------------------------------
     def save(self, error_count: int = 0, retrain_count: int = 0) -> bool:
         """Guarda el modelo actual (el que está en memoria) como principal."""
