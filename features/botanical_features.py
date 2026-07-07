@@ -3,9 +3,6 @@
 # ============================================================
 import cv2
 import numpy as np
-from skimage import measure
-from scipy.spatial import distance
-from config.settings import IMAGE_SIZE
 
 # 1 ondulacion + 1 rugosidad + 1 densidad_venas + 24 hist_angs + 2 estipulas + 1 compacidad
 BOTANICAL_FEATURE_DIM = 30

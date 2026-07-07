@@ -1,18 +1,12 @@
 # ============================================================
 # config/settings.py  --  Parámetros centrales del sistema
 # ============================================================
-IMAGE_SIZE = (640, 640)
 CNN_IMAGE_SIZE = (224, 224)
-PCA_VARIANCE = 0.95
-MAX_PCA_COMPONENTS = 300
 BATCH_SIZE = 32
 EPOCHS = 100
 LEARNING_RATE = 0.001
 WEIGHT_DECAY = 0.005
 DROPOUT_RATE = 0.5
-USE_SMOTE = False
-SMOTE_K_NEIGHBORS = 3
-AUGMENTATION_FACTOR = 3
 EARLY_STOPPING_PATIENCE = 25
 ERROR_THRESHOLD_FOR_RETRAIN = 20
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
