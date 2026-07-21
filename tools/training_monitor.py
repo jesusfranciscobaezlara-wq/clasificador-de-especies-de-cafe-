@@ -149,6 +149,7 @@ def plot_summary(summary: list):
 
     plt.tight_layout()
     plt.show()
+    plt.close(fig)
 
 
 # ------------------------------------------------------------------
@@ -208,6 +209,7 @@ def plot_session_detail(session: dict):
 
     plt.tight_layout()
     plt.show()
+    plt.close(fig)
 
 
 # ------------------------------------------------------------------

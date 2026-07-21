@@ -305,6 +305,11 @@ class CoffeePlantClassifier:
         axes[1].axis("off")
         plt.tight_layout()
         plt.show()
+        # Sin esto, cada predicción deja su figura viva en el registro interno
+        # de matplotlib aunque cierres la ventana; tras muchas predicciones
+        # seguidas en consola, los recursos de Tkinter acumulados terminan
+        # rompiendo la creación de la siguiente ventana (o dejándola colgada).
+        plt.close(fig)
 
     def _get_sample_image(self, plant: str) -> str | None:
         folder = os.path.join(self.train_folder, plant)
