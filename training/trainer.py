@@ -584,35 +584,47 @@ class ModelTrainer:
                 "best_val_acc_global": self._best_val_acc_global,
             }
             joblib.dump(meta, os.path.join(self.results_folder, "training_info.joblib"))
-            # Guardar log de sesión
-            log_dir = os.path.join(self.results_folder, "logs")
-            os.makedirs(log_dir, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            session_data = {
-                "timestamp": timestamp,
-                "class_list": self.class_list,
-                "num_classes": len(self.class_list),
-                "epochs_run": len(self._session_log),
-                "best_val_acc": max((e["val_acc"] for e in self._session_log), default=0),
-                "best_val_loss": min((e["val_loss"] for e in self._session_log), default=0),
-                "error_count": error_count,
-                "retrain_count": retrain_count,
-                "history": self._session_log,
-            }
-            log_path = os.path.join(log_dir, f"session_{timestamp}.json")
-            with open(log_path, "w", encoding="utf-8") as f:
-                json.dump(session_data, f, indent=2)
-            summary_path = os.path.join(log_dir, "summary.json")
-            summary = []
-            if os.path.exists(summary_path):
-                try:
-                    with open(summary_path, encoding="utf-8") as f:
-                        summary = json.load(f)
-                except:
-                    pass
-            summary.append({k: v for k, v in session_data.items() if k != "history"})
-            with open(summary_path, "w", encoding="utf-8") as f:
-                json.dump(summary, f, indent=2)
+
+            # save() también se llama solo para persistir contadores (ej. al
+            # confirmar una predicción en el aprendizaje activo), sin que haya
+            # ocurrido un entrenamiento real. Si no hay épocas registradas en
+            # esta sesión, no se agrega una entrada de sesión falsa (0%/0
+            # épocas) al historial de logs/summary.json.
+            if self._session_log:
+                log_dir = os.path.join(self.results_folder, "logs")
+                os.makedirs(log_dir, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                session_data = {
+                    "timestamp": timestamp,
+                    "class_list": self.class_list,
+                    "num_classes": len(self.class_list),
+                    "epochs_run": len(self._session_log),
+                    "best_val_acc": max((e["val_acc"] for e in self._session_log), default=0),
+                    "best_val_loss": min((e["val_loss"] for e in self._session_log), default=0),
+                    "error_count": error_count,
+                    "retrain_count": retrain_count,
+                    "history": self._session_log,
+                }
+                log_path = os.path.join(log_dir, f"session_{timestamp}.json")
+                with open(log_path, "w", encoding="utf-8") as f:
+                    json.dump(session_data, f, indent=2)
+                summary_path = os.path.join(log_dir, "summary.json")
+                summary = []
+                if os.path.exists(summary_path):
+                    try:
+                        with open(summary_path, encoding="utf-8") as f:
+                            summary = json.load(f)
+                    except:
+                        pass
+                summary.append({k: v for k, v in session_data.items() if k != "history"})
+                with open(summary_path, "w", encoding="utf-8") as f:
+                    json.dump(summary, f, indent=2)
+
+                # Evita volver a registrar esta misma sesión si save() se
+                # llama de nuevo más tarde (ej. al confirmar una predicción)
+                # sin que haya habido un nuevo entrenamiento de por medio.
+                self._session_log = []
+
             print(f"💾 Modelo guardado en: {self.results_folder}")
             return True
         except Exception as e:
