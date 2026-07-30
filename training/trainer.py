@@ -5,7 +5,6 @@
 import os
 import json
 import time
-import threading
 import traceback
 import shutil
 from datetime import datetime
@@ -83,8 +82,6 @@ class ModelTrainer:
         self.ax3 = None
         self.plot_enabled = False
         self.epoch_metrics = []
-        self._plot_keepalive_thread = None
-        self._plot_keepalive_stop = None
 
         # Cargar metadatos de modelos existentes
         self._load_models_metadata()
@@ -189,41 +186,7 @@ class ModelTrainer:
     # ------------------------------------------------------------
     # Métodos de entrenamiento
     # ------------------------------------------------------------
-    def _start_plot_keepalive(self):
-        """Sigue procesando los eventos de la ventana de entrenamiento tras
-        terminar las épocas. Sin esto, nadie vuelve a bombear su cola de
-        mensajes de Windows: el sistema operativo la marca "no responde" en
-        cuanto la tocas, y si fuerzas el cierre desde ese diálogo, Windows
-        termina TODO el proceso (no solo la ventana)."""
-        if self.fig is None:
-            return
-        self._plot_keepalive_stop = threading.Event()
-        fig, stop_event = self.fig, self._plot_keepalive_stop
-
-        def _pump():
-            while not stop_event.is_set() and plt.fignum_exists(fig.number):
-                try:
-                    fig.canvas.flush_events()
-                except Exception:
-                    break
-                time.sleep(0.15)
-
-        self._plot_keepalive_thread = threading.Thread(target=_pump, daemon=True)
-        self._plot_keepalive_thread.start()
-
-    def _stop_plot_keepalive(self):
-        if self._plot_keepalive_stop is not None:
-            self._plot_keepalive_stop.set()
-        if self._plot_keepalive_thread is not None and self._plot_keepalive_thread.is_alive():
-            self._plot_keepalive_thread.join(timeout=1.0)
-        self._plot_keepalive_thread = None
-        self._plot_keepalive_stop = None
-
     def _init_plot(self):
-        # Nueva sesión de entrenamiento: si quedaba un hilo de la ronda
-        # anterior bombeando eventos de esa figura, hay que pararlo antes de
-        # reusar o reemplazar self.fig.
-        self._stop_plot_keepalive()
         if self.fig is not None and plt.fignum_exists(self.fig.number):
             self.plot_enabled = True
             self.epoch_metrics = []
@@ -585,10 +548,17 @@ class ModelTrainer:
             # en otras ventanas (evaluación de imágenes, monitor) deja de
             # bloquear y la ventana se abre y se cierra en el mismo instante.
             plt.ioff()
-            # La ventana de entrenamiento queda abierta a propósito para
-            # poder revisar las gráficas con calma; este hilo la mantiene
-            # respondiendo hasta que el usuario la cierre.
-            self._start_plot_keepalive()
+            # Windows marca una ventana Tk como "no responde" si el hilo que
+            # la creó deja de bombear su cola de mensajes; un hilo aparte no
+            # sirve porque Windows solo cuenta al hilo dueño de la ventana.
+            # Por eso nos quedamos aquí, en el hilo principal, dentro del
+            # propio bucle de eventos de Tk hasta que el usuario cierre la
+            # ventana: se puede revisar con calma y cerrar sin colgar nada.
+            if self.fig is not None and plt.fignum_exists(self.fig.number):
+                print("📊 Revisa la ventana de gráficas; ciérrala para continuar.")
+                plt.show(block=True)
+            self.fig = None
+            self.plot_enabled = False
 
     def _plot_confusion_matrix(self, loader):
         self.model.eval()
