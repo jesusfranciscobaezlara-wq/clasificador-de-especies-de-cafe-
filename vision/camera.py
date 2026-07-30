@@ -73,6 +73,10 @@ class CameraSession:
 
         self.cap.release()
         plt.close()
+        # Sin esto, plt.ion() sigue activo para el resto del programa: los
+        # plt.show() de otras ventanas (evaluación de imágenes) dejan de
+        # bloquear y se abren y cierran en el mismo instante.
+        plt.ioff()
         print("\n✅ Modo cámara finalizado")
 
     # ------------------------------------------------------------------
