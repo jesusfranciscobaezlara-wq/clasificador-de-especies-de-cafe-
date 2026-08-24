@@ -14,7 +14,6 @@ if sys.stdout.encoding is not None and sys.stdout.encoding.lower() != "utf-8":
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import numpy as np
 
 # Mismo criterio que el resto del proyecto: datasets/ junto a la raíz por
 # defecto, salvo que COFFEE_BASE_DIR indique otra ubicación.

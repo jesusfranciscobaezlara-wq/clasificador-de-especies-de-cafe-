@@ -294,7 +294,7 @@ class ModelTrainer:
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
             plt.pause(0.001)
-        except Exception as e:
+        except Exception:
             self.plot_enabled = False
             if self.fig:
                 plt.close(self.fig)

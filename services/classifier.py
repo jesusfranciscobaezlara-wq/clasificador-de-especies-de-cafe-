@@ -242,7 +242,7 @@ class CoffeePlantClassifier:
         return get_display_name(plant_key)
 
     def _print_result(self, img_path, pred, proba, true_label):
-        print(f"\n=== Resultado ===")
+        print("\n=== Resultado ===")
         print(f"  Imagen:     {os.path.basename(img_path)}")
         print(f"  Predicción: {get_display_name(pred)} ({proba:.2%})")
         if true_label:
