@@ -50,6 +50,30 @@ class CoffeePlantDataset(Dataset):
         return img, self.bot_feats[idx], self.labels[idx]
 
 
+class FocalLoss(nn.Module):
+    """
+    Focal Loss (Lin et al., 2017).
+
+    En vez de tratar todas las imágenes por igual como CrossEntropyLoss,
+    reduce automáticamente el peso de los ejemplos que el modelo ya
+    clasifica con alta confianza (fáciles) y aumenta el peso relativo de
+    los que aún confunde (difíciles). La "dificultad" se calcula en cada
+    forward pass a partir de la probabilidad que el propio modelo le da a
+    la clase correcta — no depende de ningún nombre de archivo, carpeta ni
+    etiqueta externa, así que se ajusta sola conforme el modelo mejora.
+    """
+    def __init__(self, gamma: float = 2.0, weight: torch.Tensor | None = None):
+        super().__init__()
+        self.gamma = gamma
+        self.weight = weight
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        ce_loss = nn.functional.cross_entropy(logits, targets, weight=self.weight, reduction="none")
+        pt = torch.exp(-ce_loss)  # probabilidad que el modelo asignó a la clase correcta
+        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+        return focal_loss.mean()
+
+
 class ModelTrainer:
     def __init__(self, results_folder: str):
         self.results_folder = results_folder
@@ -426,7 +450,7 @@ class ModelTrainer:
                 lr = LEARNING_RATE
 
             self._init_plot()
-            criterion = nn.CrossEntropyLoss()
+            criterion = FocalLoss(gamma=2.0)
             optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=WEIGHT_DECAY)
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=5, factor=0.5)
 
