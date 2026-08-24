@@ -6,7 +6,6 @@ import os
 import json
 import time
 import traceback
-import shutil
 from datetime import datetime
 import numpy as np
 import torch
@@ -29,7 +28,6 @@ from features.botanical_features import (
     get_contour_and_mask, estimate_base_point, extract_botanical_features,
     BOTANICAL_FEATURE_DIM,
 )
-import cv2
 
 
 class CoffeePlantDataset(Dataset):
@@ -355,8 +353,7 @@ class ModelTrainer:
     # Entrenamiento principal (con guardado de mejores modelos)
     # ------------------------------------------------------------
     def train(self, X_train: np.ndarray, y_train: np.ndarray,
-              validation_split: float = 0.2, fine_tune: bool = False,
-              train_folder: str | None = None) -> bool:
+              fine_tune: bool = False) -> bool:
         try:
             self._session_log = []
             unique, counts = np.unique(y_train, return_counts=True)

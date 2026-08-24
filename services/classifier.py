@@ -12,12 +12,11 @@ import matplotlib.pyplot as plt
 
 from config.settings import (
     ERROR_THRESHOLD_FOR_RETRAIN, PLANT_DESCRIPTIONS, get_display_name,
-    CNN_IMAGE_SIZE
+    CNN_IMAGE_SIZE, IMAGE_EXTENSIONS
 )
 from data.loader import load_images_from_folder, load_single_image
 from training.trainer import ModelTrainer
 from features.botanical_features import get_contour_and_mask, estimate_base_point, extract_botanical_features
-from models.fusion_model import FusionCoffeeModel
 
 # Por debajo de esta confianza, _infer() devuelve "DESCONOCIDO" en vez de la
 # clase con mayor probabilidad: evita presentar como certera una predicción
@@ -99,7 +98,7 @@ class CoffeePlantClassifier:
         print("\nCargando imágenes de entrenamiento...")
         X, y = load_images_from_folder(self.train_folder, target_size=CNN_IMAGE_SIZE)
         fine_tune = self.trainer.model is not None
-        if self.trainer.train(X, y, fine_tune=fine_tune, train_folder=self.train_folder):
+        if self.trainer.train(X, y, fine_tune=fine_tune):
             saved = self.trainer.save(self.error_count, self.retrain_count)
             if saved:
                 self._rebuild_idx_to_class()
@@ -188,45 +187,13 @@ class CoffeePlantClassifier:
     def _retrain(self):
         print("\nReentrenando por errores consecutivos...")
         X, y = load_images_from_folder(self.train_folder, target_size=CNN_IMAGE_SIZE)
-        if self.trainer.train(X, y, fine_tune=True, train_folder=self.train_folder):
+        if self.trainer.train(X, y, fine_tune=True):
             self.retrain_count += 1
             self.error_count = 0
             self.trainer.save(self.error_count, self.retrain_count)
             self._rebuild_idx_to_class()
             self._bot_feat_dim = self.trainer._bot_feat_dim
             print(f"Reentrenamiento #{self.retrain_count} completado")
-
-    def select_and_predict_from_test(self):
-        mifoto_dir = os.path.join(self.test_folder, "mifoto")
-        os.makedirs(mifoto_dir, exist_ok=True)
-        imgs = [f for f in os.listdir(mifoto_dir)
-                if f.lower().endswith((".png", ".jpg", ".jpeg", ".bmp"))]
-        if not imgs:
-            print("No hay imágenes en la carpeta de prueba")
-            return
-        print("\nImágenes disponibles:")
-        for i, name in enumerate(imgs, 1):
-            print(f"  {i}. {name}")
-        try:
-            choice = int(input("\nSeleccione número (0 para cancelar): "))
-            if choice == 0 or choice > len(imgs):
-                return
-            img_path = os.path.join(mifoto_dir, imgs[choice - 1])
-            pred, proba = self.predict_single_image(img_path)
-            if pred is None:
-                return
-            while True:
-                ok = input(f"¿Fue correcta la predicción '{get_display_name(pred)}'? (s/n): ").strip().lower()
-                if ok == "s":
-                    self.move_to_class_folder(img_path, pred, dataset="train")
-                    self.trainer.save(self.error_count, self.retrain_count)
-                    break
-                elif ok == "n":
-                    self.learn_from_mistake(img_path)
-                    self.move_to_mifoto(img_path, dataset="test")
-                    break
-        except ValueError:
-            print("Entrada inválida")
 
     def _move_to_folder(self, img_path: str, dest_dir: str) -> bool:
         os.makedirs(dest_dir, exist_ok=True)
@@ -262,7 +229,7 @@ class CoffeePlantClassifier:
                 continue
             folder = os.path.join(self.train_folder, plant)
             count = len([f for f in os.listdir(folder)
-                         if f.lower().endswith((".png", ".jpg", ".jpeg", ".bmp"))]) if os.path.exists(folder) else 0
+                         if f.lower().endswith(IMAGE_EXTENSIONS)]) if os.path.exists(folder) else 0
             status = "" if plant in active else " (sin modelo)"
             print(f"   {status} {get_display_name(plant)}: {count} imágenes")
         print(f"\n   Errores recientes:    {self.error_count}")
@@ -315,5 +282,5 @@ class CoffeePlantClassifier:
         folder = os.path.join(self.train_folder, plant)
         if not os.path.exists(folder):
             return None
-        files = [f for f in os.listdir(folder) if f.lower().endswith((".png", ".jpg", ".jpeg", ".bmp"))]
+        files = [f for f in os.listdir(folder) if f.lower().endswith(IMAGE_EXTENSIONS)]
         return os.path.join(folder, random.choice(files)) if files else None

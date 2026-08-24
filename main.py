@@ -18,7 +18,7 @@ import cv2
 from services.classifier import CoffeePlantClassifier
 from vision.camera import CameraSession
 from vision.measurement import calcular_medidas_imagen
-from config.settings import get_display_name
+from config.settings import get_display_name, IMAGE_EXTENSIONS
 
 # Por defecto usa datasets/ junto al proyecto (portátil entre máquinas);
 # COFFEE_BASE_DIR permite apuntar a otra ubicación sin tocar el código.
@@ -95,7 +95,7 @@ def evaluar_imagenes_entrenamiento(classifier):
         try:
             print("\n--- Evaluación de imágenes (Enter para salir) ---")
             imgs = [f for f in os.listdir(mifoto_dir)
-                    if f.lower().endswith(('.png','.jpg','.jpeg','.bmp'))]
+                    if f.lower().endswith(IMAGE_EXTENSIONS)]
             if not imgs:
                 print("No hay imágenes en Test/mifoto.")
                 return
@@ -191,7 +191,7 @@ def predecir_imagen_prueba(classifier):
 
     while True:
         imgs = [f for f in os.listdir(mifoto_dir)
-                if f.lower().endswith(('.png','.jpg','.jpeg','.bmp'))]
+                if f.lower().endswith(IMAGE_EXTENSIONS)]
         if not imgs:
             print("No hay imágenes en Test/mifoto.")
             return

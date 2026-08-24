@@ -18,7 +18,6 @@ from PIL import Image, ImageTk
 import cv2
 import threading
 import io
-import numpy as np
 
 # Para gráficos del monitor (requiere matplotlib)
 import matplotlib
@@ -34,7 +33,7 @@ sys.path.insert(0, BASE_PROJECT_DIR)
 from services.classifier import CoffeePlantClassifier
 from vision.camera import CameraSession
 from vision.measurement import calcular_medidas_imagen
-from config.settings import PLANT_DESCRIPTIONS, get_display_name
+from config.settings import PLANT_DESCRIPTIONS, get_display_name, IMAGE_EXTENSIONS
 
 # Ruta base de datasets (configurable por variable de entorno)
 BASE_DIR = os.environ.get("COFFEE_BASE_DIR", os.path.join(BASE_PROJECT_DIR, "datasets"))
@@ -53,7 +52,7 @@ def _pick_sample_image(classifier, plant_class):
     folder = os.path.join(classifier.train_folder, plant_class)
     if os.path.exists(folder):
         files = [f for f in os.listdir(folder)
-                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+                 if f.lower().endswith(IMAGE_EXTENSIONS)]
         if files:
             return os.path.join(folder, random.choice(files))
     return None
@@ -542,7 +541,7 @@ class ImageTestPage(tk.Frame):
             self.image_list = []
         else:
             self.image_list = [f for f in os.listdir(self.mifoto_dir)
-                               if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+                               if f.lower().endswith(IMAGE_EXTENSIONS)]
         self.image_list.sort()
         self.lbl_count.config(text=f"Imágenes disponibles: {len(self.image_list)}")
 
