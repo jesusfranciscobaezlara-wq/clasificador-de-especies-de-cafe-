@@ -4,6 +4,7 @@
 import os
 import random
 import shutil
+import warnings
 import joblib
 import numpy as np
 import torch
@@ -231,7 +232,18 @@ class CoffeePlantClassifier:
             logits = model(tensor_n, bot_tensor)
             probs = torch.softmax(logits, dim=1)[0]
             pred_idx = int(torch.argmax(logits, dim=1).item())
-            logits[0, pred_idx].backward()
+            with warnings.catch_warnings():
+                # El hook de layer4 no necesita el gradiente respecto a la
+                # entrada (solo respecto a su salida, que es justo lo que
+                # usa Grad-CAM); PyTorch avisa igual porque la imagen no
+                # tiene requires_grad. El resultado es correcto, así que se
+                # silencia solo esta advertencia puntual, no las demás.
+                warnings.filterwarnings(
+                    "ignore",
+                    message="Full backward hook is firing when gradients are computed",
+                    category=UserWarning,
+                )
+                logits[0, pred_idx].backward()
         finally:
             h1.remove()
             h2.remove()
