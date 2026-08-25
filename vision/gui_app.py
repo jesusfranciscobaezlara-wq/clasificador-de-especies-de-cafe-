@@ -11,6 +11,7 @@ if sys.stdout.encoding is not None and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
 
+import json
 import random
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -254,8 +255,11 @@ class TrainPage(tk.Frame):
     def _run_training(self):
         # Se ejecuta en un hilo secundario: no tocar widgets de Tk aquí
         # directamente, solo agendar la actualización en el hilo principal.
+        # show_plot=False es obligatorio aquí: Tkinter no es seguro para
+        # usarse desde un hilo que no sea el principal, y train_and_save()
+        # por defecto abre una ventana de gráficas en vivo.
         try:
-            success = self.classifier.train_and_save()
+            success = self.classifier.train_and_save(show_plot=False)
         except Exception as e:
             self.after(0, self._on_training_done, False, str(e))
             return
@@ -719,7 +723,7 @@ class MonitorWindow(tk.Toplevel):
         try:
             from tools.training_monitor import load_summary
             self.summary = load_summary()
-        except:
+        except (ImportError, OSError, json.JSONDecodeError):
             pass
         self.sessions_listbox.delete(0, tk.END)
         for i, s in enumerate(self.summary, 1):

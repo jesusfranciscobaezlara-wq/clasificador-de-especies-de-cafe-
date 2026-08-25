@@ -119,7 +119,7 @@ class ModelTrainer:
             try:
                 with open(meta_path, "r", encoding="utf-8") as f:
                     self.models_metadata = json.load(f)
-            except:
+            except (OSError, json.JSONDecodeError):
                 self.models_metadata = []
         # Ordenar por precisión descendente
         self.models_metadata.sort(key=lambda x: x.get("val_acc", 0), reverse=True)
@@ -353,7 +353,7 @@ class ModelTrainer:
     # Entrenamiento principal (con guardado de mejores modelos)
     # ------------------------------------------------------------
     def train(self, X_train: np.ndarray, y_train: np.ndarray,
-              fine_tune: bool = False) -> bool:
+              fine_tune: bool = False, show_plot: bool = True) -> bool:
         try:
             self._session_log = []
             unique, counts = np.unique(y_train, return_counts=True)
@@ -444,7 +444,11 @@ class ModelTrainer:
                 self.model = FusionCoffeeModel(num_classes=num_classes, bot_feat_dim=self._bot_feat_dim, pretrained=True).to(self.device)
                 lr = LEARNING_RATE
 
-            self._init_plot()
+            # show_plot=False evita crear/actualizar la ventana de gráficas:
+            # Tkinter no es seguro para usarse desde un hilo que no sea el
+            # principal, y la GUI dispara este entrenamiento en un hilo aparte.
+            if show_plot:
+                self._init_plot()
             criterion = FocalLoss(gamma=2.0)
             optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=WEIGHT_DECAY)
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=5, factor=0.5)
@@ -573,7 +577,7 @@ class ModelTrainer:
             # Por eso nos quedamos aquí, en el hilo principal, dentro del
             # propio bucle de eventos de Tk hasta que el usuario cierre la
             # ventana: se puede revisar con calma y cerrar sin colgar nada.
-            if self.fig is not None and plt.fignum_exists(self.fig.number):
+            if show_plot and self.fig is not None and plt.fignum_exists(self.fig.number):
                 print("📊 Revisa la ventana de gráficas; ciérrala para continuar.")
                 plt.show(block=True)
             self.fig = None
@@ -650,7 +654,7 @@ class ModelTrainer:
                     try:
                         with open(summary_path, encoding="utf-8") as f:
                             summary = json.load(f)
-                    except:
+                    except (OSError, json.JSONDecodeError):
                         pass
                 summary.append({k: v for k, v in session_data.items() if k != "history"})
                 with open(summary_path, "w", encoding="utf-8") as f:

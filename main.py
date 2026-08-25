@@ -272,6 +272,14 @@ def menu_principal(classifier):
             try:
                 from vision.gui_app import main_gui
                 main_gui()
+                # La GUI usa su propia instancia de CoffeePlantClassifier;
+                # lo que hayas entrenado o evaluado ahí se guardó en disco,
+                # pero no en esta instancia. Se recarga para que la consola
+                # refleje el estado actualizado al volver (load_models() no
+                # siempre refresca error_count/retrain_count, así que se
+                # releen aparte desde el mismo archivo).
+                classifier.load_models()
+                classifier._load_counters()
             except ImportError as e:
                 print(f"No se pudo cargar la GUI: {e}")
         elif op == "6":

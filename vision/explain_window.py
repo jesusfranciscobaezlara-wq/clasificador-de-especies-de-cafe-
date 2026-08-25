@@ -233,23 +233,48 @@ class ExplainWindow:
         if not self.files:
             return
         idx = max(0, min(idx, len(self.files) - 1))
-        data = self._analyze(self.files[idx])
-        if data is None:
-            print(f"No se pudo procesar {self.files[idx]}.")
-            return
         self.current_idx = idx
         if idx < self.list_offset:
             self.list_offset = idx
         elif idx >= self.list_offset + _VISIBLE_ROWS:
             self.list_offset = idx - _VISIBLE_ROWS + 1
+        # La lista de imágenes no depende de tener un modelo cargado: se
+        # dibuja siempre, aunque la predicción de abajo falle o no haya
+        # modelo, para que el panel no se quede con el estilo por defecto
+        # de matplotlib (fondo blanco) en vez del oscuro de la ventana.
+        self._draw_list()
+
+        if self.classifier.trainer.model is None:
+            self._show_message(
+                "No hay un modelo entrenado o cargado.\n\n"
+                "Ve a Modo Entrenamiento → Entrenar modelo,\n"
+                "o Gestionar modelos guardados, y vuelve a intentarlo."
+            )
+            return
+        data = self._analyze(self.files[idx])
+        if data is None:
+            print(f"No se pudo procesar {self.files[idx]}.")
+            self._show_message(f"No se pudo procesar la imagen:\n{self.files[idx]}")
+            return
 
         self._draw_leaf(data)
         self._draw_traits(data)
-        self._draw_list()
         self._draw_species(data)
         self.fig.suptitle(f"Predecir una imagen (sin guardar) — {data['img_filename']}",
                           color="white", fontsize=15, y=0.965)
         self._animate_reveal()
+
+    def _show_message(self, text: str):
+        """Mensaje visible directamente en la ventana (no solo en consola)
+        cuando no se puede mostrar una predicción — ej. sin modelo cargado."""
+        for ax in (self.ax1, self.ax2, self.ax4):
+            ax.cla()
+            ax.set_facecolor(_BG)
+            ax.axis("off")
+        self.ax1.text(0.5, 0.5, text, color="white", fontsize=13,
+                      ha="center", va="center", transform=self.ax1.transAxes)
+        self.fig.suptitle("Predecir una imagen (sin guardar)", color="white", fontsize=15, y=0.965)
+        self.fig.canvas.draw_idle()
 
     def _on_submit(self, text: str):
         text = text.strip()

@@ -98,11 +98,11 @@ class CoffeePlantClassifier:
                 self._bot_feat_dim = self.trainer._bot_feat_dim
         return ok
 
-    def train_and_save(self) -> bool:
+    def train_and_save(self, show_plot: bool = True) -> bool:
         print("\nCargando imágenes de entrenamiento...")
         X, y = load_images_from_folder(self.train_folder, target_size=CNN_IMAGE_SIZE)
         fine_tune = self.trainer.model is not None
-        if self.trainer.train(X, y, fine_tune=fine_tune):
+        if self.trainer.train(X, y, fine_tune=fine_tune, show_plot=show_plot):
             saved = self.trainer.save(self.error_count, self.retrain_count)
             if saved:
                 self._rebuild_idx_to_class()

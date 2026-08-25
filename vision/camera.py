@@ -33,7 +33,6 @@ class CameraSession:
         self.measurement    = LeafMeasurement()
         self.cnt            = None
         self.rect_info      = None
-        self.show_details   = False
 
         # ── Suavizado temporal (EMA) para estabilizar mediciones ──
         self._ema_alto      = 0.0
@@ -111,7 +110,7 @@ class CameraSession:
                     f"Cafe: {self.last_pred} ({self.last_conf:.1%})",
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(frame_rgb,
-                    "Q:Salir | SPACE:Capturar | S:Detalles | R:Reiniciar",
+                    "Q:Salir | SPACE:Capturar | R:Reiniciar",
                     (10, frame.shape[0] - 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
@@ -282,8 +281,6 @@ class CameraSession:
                 
             print(f"\n📸 Captura guardada: {img_path}")
             print(f"📏 Mediciones guardadas: {json_path}")
-        elif event.key == "s":
-            self.show_details = not self.show_details
         elif event.key == "r":
             self.aruco.reset()
             self.measurement = LeafMeasurement()
@@ -295,5 +292,4 @@ class CameraSession:
         print("\n🎮 CONTROLES:")
         print("   Q          → Salir")
         print("   ESPACIO    → Capturar frame")
-        print("   S          → Mostrar/ocultar detalles")
         print("   R          → Reiniciar calibración ArUco\n")
