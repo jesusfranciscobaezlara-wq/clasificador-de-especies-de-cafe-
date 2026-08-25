@@ -16,7 +16,10 @@ from config.settings import (
 )
 from data.loader import load_images_from_folder, load_single_image
 from training.trainer import ModelTrainer
-from features.botanical_features import get_contour_and_mask, estimate_base_point, extract_botanical_features
+from features.botanical_features import (
+    get_contour_and_mask, extract_botanical_features,
+    compute_vein_geometry,
+)
 
 # Por debajo de esta confianza, _infer() devuelve "DESCONOCIDO" en vez de la
 # clase con mayor probabilidad: evita presentar como certera una predicción
@@ -112,8 +115,7 @@ class CoffeePlantClassifier:
         mask, contour = get_contour_and_mask(img_uint8)
         if contour is None or len(contour) == 0:
             return np.zeros(self._bot_feat_dim, dtype=np.float32)
-        base_point = estimate_base_point(contour)
-        bot = extract_botanical_features(img_uint8, mask, contour, base_point)
+        bot = extract_botanical_features(img_uint8, mask, contour)
         if len(bot) < self._bot_feat_dim:
             pad = np.zeros(self._bot_feat_dim - len(bot))
             bot = np.concatenate([bot, pad])
@@ -165,6 +167,83 @@ class CoffeePlantClassifier:
             else:
                 self.trainer.save(self.error_count, self.retrain_count)
         return pred, proba
+
+    def analyze_for_explanation(self, img_path: str) -> dict | None:
+        """
+        Corre una predicción con todo lo necesario para explicarla: Grad-CAM
+        sobre la CNN (qué mira la red en la imagen) y la geometría real detrás
+        de cada rasgo botánico (contorno, venas detectadas, punto de
+        estípulas), además de la probabilidad de las 5 clases. Pensado para
+        la ventana interactiva de "Predecir una imagen (sin guardar)".
+        """
+        if self.trainer.model is None:
+            print("No hay un modelo entrenado/cargado. Entrena o carga uno primero.")
+            return None
+        if not os.path.exists(img_path):
+            print(f"Archivo no encontrado: {img_path}")
+            return None
+        img = load_single_image(img_path, target_size=CNN_IMAGE_SIZE)
+        if img is None:
+            return None
+        img_uint8 = (img * 255).astype(np.uint8)
+
+        bot_feat = self._extract_botanical_from_img(img)
+        bot_tensor = torch.from_numpy(bot_feat).unsqueeze(0).to(self.trainer.device)
+        tensor = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).to(self.trainer.device)
+        tensor_n = (tensor - self._norm_mean) / self._norm_std
+
+        cam, probs, pred_idx = self._compute_gradcam(tensor_n, bot_tensor)
+        conf = float(probs[pred_idx])
+        pred = self.idx_to_class.get(pred_idx, "DESCONOCIDO") if conf >= CONFIDENCE_THRESHOLD else "DESCONOCIDO"
+
+        mask, contour = get_contour_and_mask(img_uint8)
+        has_leaf = contour is not None and len(contour) > 0
+        if has_leaf:
+            edges_masked, ang_deg = compute_vein_geometry(img_uint8, mask)
+            M = cv2.moments(contour)
+            centroid = (M["m10"] / M["m00"], M["m01"] / M["m00"]) if M["m00"] else None
+        else:
+            centroid = None
+            edges_masked = np.zeros(img_uint8.shape[:2], dtype=np.uint8)
+            ang_deg = np.zeros(img_uint8.shape[:2], dtype=np.float32)
+
+        names = [get_display_name(self.idx_to_class.get(i, "?")) for i in range(len(probs))]
+        class_keys = [self.idx_to_class.get(i, "?") for i in range(len(probs))]
+
+        return dict(
+            img_filename=os.path.basename(img_path), img_uint8=img_uint8, cam=cam,
+            mask=mask, contour=contour, centroid=centroid,
+            edges=edges_masked, ang_deg=ang_deg, bot_feat=bot_feat,
+            probs=probs, pred_idx=pred_idx, names=names, class_keys=class_keys,
+            pred=pred, conf=conf,
+        )
+
+    def _compute_gradcam(self, tensor_n: torch.Tensor, bot_tensor: torch.Tensor) -> tuple[np.ndarray, np.ndarray, int]:
+        """Grad-CAM sobre la última capa convolucional del backbone (layer4):
+        qué región de la imagen pesó más para llegar a la predicción."""
+        model = self.trainer.model
+        model.eval()
+        activations, gradients = {}, {}
+        h1 = model.backbone.layer4.register_forward_hook(lambda m, i, o: activations.__setitem__("v", o))
+        h2 = model.backbone.layer4.register_full_backward_hook(lambda m, gi, go: gradients.__setitem__("v", go[0]))
+        try:
+            model.zero_grad()
+            logits = model(tensor_n, bot_tensor)
+            probs = torch.softmax(logits, dim=1)[0]
+            pred_idx = int(torch.argmax(logits, dim=1).item())
+            logits[0, pred_idx].backward()
+        finally:
+            h1.remove()
+            h2.remove()
+
+        act = activations["v"][0]
+        grad = gradients["v"][0]
+        weights = grad.mean(dim=(1, 2))
+        cam = torch.relu((weights[:, None, None] * act).sum(0))
+        cam = cam / (cam.max() + 1e-8)
+        h, w = tensor_n.shape[-2:]
+        cam_np = cv2.resize(cam.detach().cpu().numpy().astype(np.float32), (w, h), interpolation=cv2.INTER_CUBIC)
+        return np.clip(cam_np, 0, 1), probs.detach().cpu().numpy(), pred_idx
 
     def predict_frame(self, frame: np.ndarray) -> tuple[str | None, float | None]:
         if self.trainer.model is None:

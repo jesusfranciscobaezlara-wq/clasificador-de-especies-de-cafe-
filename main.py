@@ -184,44 +184,21 @@ def modo_prueba(classifier):
 
 
 def predecir_imagen_prueba(classifier):
-    """Predice una imagen de Test/mifoto sin guardar feedback."""
+    """Predice una imagen de Test/mifoto sin guardar feedback. Abre una sola
+    ventana con la hoja (Grad-CAM + rasgos botánicos), sus valores, un
+    selector siempre disponible (número o lista con scroll) y la predicción
+    final; cambiar la imagen ahí mismo actualiza todo al instante."""
     mifoto_dir = os.path.join(classifier.test_folder, "mifoto")
     if not os.path.exists(mifoto_dir):
         os.makedirs(mifoto_dir, exist_ok=True)
 
-    while True:
-        imgs = [f for f in os.listdir(mifoto_dir)
-                if f.lower().endswith(IMAGE_EXTENSIONS)]
-        if not imgs:
-            print("No hay imágenes en Test/mifoto.")
-            return
+    imgs = [f for f in os.listdir(mifoto_dir) if f.lower().endswith(IMAGE_EXTENSIONS)]
+    if not imgs:
+        print("No hay imágenes en Test/mifoto.")
+        return
 
-        print("\n--- Predicción de prueba ---")
-        for i, name in enumerate(imgs, 1):
-            print(f"  {i}. {name}")
-        print("  0. Volver")
-
-        choice = input("Seleccione número: ").strip()
-        if choice == "0" or choice == "":
-            return
-        try:
-            idx = int(choice) - 1
-            if idx < 0 or idx >= len(imgs):
-                print("Número inválido.")
-                continue
-        except ValueError:
-            print("Entrada inválida.")
-            continue
-
-        img_path = os.path.join(mifoto_dir, imgs[idx])
-        pred, proba = classifier.predict_single_image(img_path, show_image=True)
-        if pred is None:
-            print("Error al procesar la imagen.")
-            continue
-
-        print(f"\nPredicción: {get_display_name(pred)} ({proba:.2%})")
-        print(calcular_medidas_imagen(img_path))
-        # Sin feedback
+    from vision.explain_window import ExplainWindow
+    ExplainWindow(classifier, mifoto_dir).show()
 
 
 # ============================================================

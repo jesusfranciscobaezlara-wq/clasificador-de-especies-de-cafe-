@@ -25,7 +25,7 @@ from config.settings import (
 )
 from models.fusion_model import FusionCoffeeModel
 from features.botanical_features import (
-    get_contour_and_mask, estimate_base_point, extract_botanical_features,
+    get_contour_and_mask, extract_botanical_features,
     BOTANICAL_FEATURE_DIM,
 )
 
@@ -373,8 +373,7 @@ class ModelTrainer:
             sample_img_uint8 = (sample_img * 255).astype(np.uint8)
             mask_s, contour_s = get_contour_and_mask(sample_img_uint8)
             if contour_s is not None and len(contour_s) > 0:
-                base_point = estimate_base_point(contour_s)
-                sample_bot = extract_botanical_features(sample_img_uint8, mask_s, contour_s, base_point)
+                sample_bot = extract_botanical_features(sample_img_uint8, mask_s, contour_s)
                 self._bot_feat_dim = len(sample_bot)
             else:
                 self._bot_feat_dim = BOTANICAL_FEATURE_DIM
@@ -386,8 +385,7 @@ class ModelTrainer:
                 if contour is None or len(contour) == 0:
                     bot_feats.append(np.zeros(self._bot_feat_dim, dtype=np.float32))
                     continue
-                base_point = estimate_base_point(contour)
-                bot = extract_botanical_features(img_uint8, mask, contour, base_point)
+                bot = extract_botanical_features(img_uint8, mask, contour)
                 if len(bot) < self._bot_feat_dim:
                     pad = np.zeros(self._bot_feat_dim - len(bot))
                     bot = np.concatenate([bot, pad])

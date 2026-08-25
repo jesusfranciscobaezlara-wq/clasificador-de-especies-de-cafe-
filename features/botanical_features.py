@@ -1,24 +1,22 @@
 # ============================================================
-# features/botanical_features.py  —  Limbo, nervaduras, estípulas y borde
+# features/botanical_features.py  —  Limbo, nervaduras y borde
 # ============================================================
 import cv2
 import numpy as np
 
-# 1 ondulacion + 1 rugosidad + 1 densidad_venas + 24 hist_angs + 2 estipulas + 1 compacidad
-BOTANICAL_FEATURE_DIM = 30
+# 1 ondulacion + 1 rugosidad + 1 densidad_venas + 24 hist_angs + 1 compacidad
+BOTANICAL_FEATURE_DIM = 28
 
 
 def extract_botanical_features(
     img: np.ndarray,
     mask: np.ndarray,
     contour: np.ndarray,
-    base_point: tuple = None
 ) -> np.ndarray:
     """
     Extrae características botánicas avanzadas: ondulación del borde,
-    densidad y orientación de nervaduras, presencia de estípulas (si se da
-    el punto base), y compacidad del limbo.
-    
+    densidad y orientación de nervaduras, y compacidad del limbo.
+
     Parámetros
     ----------
     img : np.ndarray
@@ -27,10 +25,7 @@ def extract_botanical_features(
         Máscara binaria de la hoja (mismo tamaño que img).
     contour : np.ndarray
         Contorno de la hoja (coordenadas dentro del ROI).
-    base_point : tuple (x, y) o None
-        Punto de inserción del pecíolo (coordenadas dentro del ROI).
-        Si es None, se omiten las características de estípulas.
-    
+
     Retorna
     -------
     np.ndarray
@@ -64,53 +59,18 @@ def extract_botanical_features(
     # ------------------------------------------------------------------
     # 2. NERVADURAS (venas): densidad y orientación
     # ------------------------------------------------------------------
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    # Ecualización CLAHE para realzar venas
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    gray_eq = clahe.apply(gray)
-    # Detección de bordes finos (Canny)
-    edges = cv2.Canny(gray_eq, 30, 100)
-    edges_masked = cv2.bitwise_and(edges, edges, mask=mask)
+    edges_masked, ang_deg = compute_vein_geometry(img, mask)
     total_pixels = np.count_nonzero(mask)
     densidad_venas = np.count_nonzero(edges_masked) / total_pixels if total_pixels > 0 else 0.0
     feat.append(densidad_venas)
-    
+
     # Histograma de orientaciones de los bordes (24 bins, 0-180°)
-    gx = cv2.Sobel(gray_eq, cv2.CV_32F, 1, 0, ksize=3)
-    gy = cv2.Sobel(gray_eq, cv2.CV_32F, 0, 1, ksize=3)
-    mag, ang = cv2.cartToPolar(gx, gy)
-    ang_deg = np.degrees(ang) % 180
     hist_angs, _ = np.histogram(ang_deg[mask > 0], bins=24, range=(0, 180))
     hist_angs = hist_angs.astype(np.float32) / (hist_angs.sum() + 1e-6)
     feat.extend(hist_angs)   # 24 valores
     
     # ------------------------------------------------------------------
-    # 3. ESTÍPULAS (protección basal) si se proporciona el punto base
-    # ------------------------------------------------------------------
-    if base_point is not None:
-        xb, yb = base_point
-        # Máscara circular de radio 30 píxeles alrededor de la base
-        base_mask = np.zeros_like(mask)
-        cv2.circle(base_mask, (xb, yb), 30, 255, -1)
-        base_roi = cv2.bitwise_and(img, img, mask=base_mask)
-        hsv = cv2.cvtColor(base_roi, cv2.COLOR_RGB2HSV)
-        # Rango típico de estípulas (marrón, rojizo, anaranjado)
-        lower = np.array([5, 30, 30])
-        upper = np.array([25, 255, 200])
-        estipula_mask = cv2.inRange(hsv, lower, upper)
-        area_estipulas = np.count_nonzero(estipula_mask)
-        ratio_estipulas = area_estipulas / total_pixels if total_pixels > 0 else 0.0
-        feat.append(ratio_estipulas)
-        # Número de componentes conectadas (regiones de estípulas)
-        num_labels, _ = cv2.connectedComponents(estipula_mask)
-        feat.append(float(num_labels - 1))   # menos el fondo
-    else:
-        # Si no hay punto base, añadimos dos ceros como marcador
-        feat.append(0.0)
-        feat.append(0.0)
-    
-    # ------------------------------------------------------------------
-    # 4. CARACTERÍSTICAS DEL LIMBO (lámina)
+    # 3. CARACTERÍSTICAS DEL LIMBO (lámina)
     # ------------------------------------------------------------------
     # Compacidad = (perímetro^2) / área
     if total_pixels > 0 and perimeter > 0:
@@ -120,6 +80,33 @@ def extract_botanical_features(
     feat.append(compacidad)
     
     return np.array(feat, dtype=np.float32)
+
+
+def compute_vein_geometry(img: np.ndarray, mask: np.ndarray) -> tuple:
+    """
+    Bordes tipo Canny dentro de la máscara de la hoja y su ángulo de
+    orientación (0-180°) en cada píxel. Es la misma base geométrica que usan
+    densidad_venas y el histograma de orientación en extract_botanical_features;
+    se expone aparte para que la ventana de explicabilidad pueda dibujar
+    exactamente lo que el modelo mide, sin recalcularlo con otra lógica.
+
+    Retorna
+    -------
+    edges_masked : np.ndarray
+        Máscara binaria de bordes (Canny) dentro de la hoja.
+    ang_deg : np.ndarray
+        Ángulo del gradiente en cada píxel, en grados (0-180).
+    """
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray_eq = clahe.apply(gray)
+    edges = cv2.Canny(gray_eq, 30, 100)
+    edges_masked = cv2.bitwise_and(edges, edges, mask=mask)
+    gx = cv2.Sobel(gray_eq, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(gray_eq, cv2.CV_32F, 0, 1, ksize=3)
+    _, ang = cv2.cartToPolar(gx, gy)
+    ang_deg = np.degrees(ang) % 180
+    return edges_masked, ang_deg
 
 
 def get_contour_and_mask(img_rgb: np.ndarray) -> tuple:
@@ -156,27 +143,3 @@ def get_contour_and_mask(img_rgb: np.ndarray) -> tuple:
         return np.zeros_like(mask), np.array([])
     contour = max(cnts, key=cv2.contourArea)
     return mask, contour
-
-
-def estimate_base_point(contour: np.ndarray) -> tuple:
-    """
-    Estima el punto de inserción del pecíolo como el punto del contorno
-    más cercano al centroide del bounding box inferior.
-    
-    Retorna
-    -------
-    tuple (x, y) o None
-    """
-    if contour is None or len(contour) == 0:
-        return None
-    # Centroide del contorno
-    M = cv2.moments(contour)
-    if M['m00'] == 0:
-        return None
-    cx = int(M['m10'] / M['m00'])
-    cy = int(M['m01'] / M['m00'])
-    # Buscar el punto del contorno más cercano al centroide
-    pts = contour.reshape(-1, 2)
-    distances = np.linalg.norm(pts - np.array([cx, cy]), axis=1)
-    idx = np.argmin(distances)
-    return tuple(pts[idx])
