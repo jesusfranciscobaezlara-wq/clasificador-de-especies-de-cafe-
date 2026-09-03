@@ -26,8 +26,8 @@ LOGS_DIR    = os.path.join(RESULTS_DIR, "logs")
 # ------------------------------------------------------------------
 def load_summary():
     """Carga el historial de sesiones. Devuelve [] si aún no hay ninguna
-    (no debe terminar el proceso: se usa tanto desde la consola como
-    desde la GUI, y ambas deben poder seguir funcionando sin logs)."""
+    (no debe terminar el proceso: el programa debe poder seguir
+    funcionando aunque todavía no existan logs)."""
     path = os.path.join(LOGS_DIR, "summary.json")
     if not os.path.exists(path):
         print(f"No se encontro summary.json en {LOGS_DIR}")

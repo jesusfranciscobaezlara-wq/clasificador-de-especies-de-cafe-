@@ -357,9 +357,9 @@ class ModelTrainer:
         try:
             self._session_log = []
             unique, counts = np.unique(y_train, return_counts=True)
-            valid = [c for c, n in zip(unique, counts) if n >= 3]
+            valid = [c for c, n in zip(unique, counts) if n >= 5]
             if len(valid) < 2:
-                raise ValueError("Se necesitan al menos 2 clases con mínimo 3 muestras.")
+                raise ValueError("Se necesitan al menos 2 clases con mínimo 5 muestras.")
             mask = np.isin(y_train, valid)
             X_img = X_train[mask]
             y_raw = y_train[mask]
@@ -446,7 +446,7 @@ class ModelTrainer:
 
             # show_plot=False evita crear/actualizar la ventana de gráficas:
             # Tkinter no es seguro para usarse desde un hilo que no sea el
-            # principal, y la GUI dispara este entrenamiento en un hilo aparte.
+            # principal, útil si el entrenamiento se dispara desde un hilo aparte.
             if show_plot:
                 self._init_plot()
             criterion = FocalLoss(gamma=2.0)

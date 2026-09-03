@@ -1,6 +1,5 @@
 # ============================================================
 # vision/measurement.py  --  Cálculo de medidas de hoja (ArUco + JSON)
-# Compartido entre main.py (consola) y vision/gui_app.py (GUI).
 # ============================================================
 import os
 import json

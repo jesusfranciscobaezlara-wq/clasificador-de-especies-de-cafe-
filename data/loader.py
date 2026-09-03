@@ -53,7 +53,7 @@ def load_images_from_folder(folder: str, target_size=CNN_IMAGE_SIZE) -> tuple[np
             if img is not None:
                 plant_images.append(img)
 
-        if len(plant_images) < 3:
+        if len(plant_images) < 5:
             print(f"  ⚠ Clase '{get_display_name(species)}' tiene pocas muestras ({len(plant_images)})")
 
         images.extend(plant_images)

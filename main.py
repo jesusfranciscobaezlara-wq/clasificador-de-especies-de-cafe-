@@ -248,8 +248,7 @@ def menu_principal(classifier):
         print("  2. Modo Prueba")
         print("  3. Ver progreso del sistema")
         print("  4. Monitor de entrenamientos")
-        print("  5. Abrir interfaz gráfica")
-        print("  6. Gestionar modelos guardados")
+        print("  5. Gestionar modelos guardados")
         print("  0. Salir")
 
         op = input("Opción: ").strip().upper()
@@ -269,20 +268,6 @@ def menu_principal(classifier):
             except SystemExit:
                 pass
         elif op == "5":
-            try:
-                from vision.gui_app import main_gui
-                main_gui()
-                # La GUI usa su propia instancia de CoffeePlantClassifier;
-                # lo que hayas entrenado o evaluado ahí se guardó en disco,
-                # pero no en esta instancia. Se recarga para que la consola
-                # refleje el estado actualizado al volver (load_models() no
-                # siempre refresca error_count/retrain_count, así que se
-                # releen aparte desde el mismo archivo).
-                classifier.load_models()
-                classifier._load_counters()
-            except ImportError as e:
-                print(f"No se pudo cargar la GUI: {e}")
-        elif op == "6":
             gestionar_modelos(classifier)
         elif op == "0":
             print("\n¡Hasta luego!")
