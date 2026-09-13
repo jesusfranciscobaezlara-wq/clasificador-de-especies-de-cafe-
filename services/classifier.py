@@ -186,6 +186,32 @@ class CoffeePlantClassifier:
         img = load_single_image(img_path, target_size=CNN_IMAGE_SIZE)
         if img is None:
             return None
+        result = self._analyze_img(img)
+        result["img_filename"] = os.path.basename(img_path)
+        return result
+
+    def analyze_frame(self, frame: np.ndarray) -> dict | None:
+        """
+        Igual que analyze_for_explanation, pero para un frame de cámara ya
+        en memoria (BGR, uint8) en vez de una ruta de archivo. Pensado para
+        el modo "Usar cámara en tiempo real", donde no hay un archivo que
+        cargar. Incluye Grad-CAM (requiere un backward pass), así que
+        conviene llamarla cada varios frames y no en cada uno.
+        """
+        if self.trainer.model is None:
+            return None
+        try:
+            img = cv2.resize(frame, CNN_IMAGE_SIZE)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = img.astype(np.float32) / 255.0
+        except Exception:
+            return None
+        return self._analyze_img(img)
+
+    def _analyze_img(self, img: np.ndarray) -> dict:
+        """Núcleo compartido de analyze_for_explanation/analyze_frame: recibe
+        una imagen float32 [0,1] RGB ya lista y calcula Grad-CAM, geometría
+        botánica y probabilidades por clase."""
         img_uint8 = (img * 255).astype(np.uint8)
 
         bot_feat = self._extract_botanical_from_img(img)
@@ -212,7 +238,7 @@ class CoffeePlantClassifier:
         class_keys = [self.idx_to_class.get(i, "?") for i in range(len(probs))]
 
         return dict(
-            img_filename=os.path.basename(img_path), img_uint8=img_uint8, cam=cam,
+            img_uint8=img_uint8, cam=cam,
             mask=mask, contour=contour, centroid=centroid,
             edges=edges_masked, ang_deg=ang_deg, bot_feat=bot_feat,
             probs=probs, pred_idx=pred_idx, names=names, class_keys=class_keys,
@@ -256,17 +282,6 @@ class CoffeePlantClassifier:
         h, w = tensor_n.shape[-2:]
         cam_np = cv2.resize(cam.detach().cpu().numpy().astype(np.float32), (w, h), interpolation=cv2.INTER_CUBIC)
         return np.clip(cam_np, 0, 1), probs.detach().cpu().numpy(), pred_idx
-
-    def predict_frame(self, frame: np.ndarray) -> tuple[str | None, float | None]:
-        if self.trainer.model is None:
-            return None, None
-        try:
-            img = cv2.resize(frame, CNN_IMAGE_SIZE)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = img.astype(np.float32) / 255.0
-            return self._infer(img)
-        except Exception:
-            return None, None
 
     def learn_from_mistake(self, img_path: str, correct_label: str | None = None):
         self.error_count += 1

@@ -37,8 +37,12 @@ def build_classifier():
 def detect_available_cameras(max_cameras=5):
     available = []
     print("\nDetectando cámaras...")
+    # DirectShow (no el MSMF por defecto en Windows): es el backend que
+    # después usa CameraSession, y evita el error -1072873822 de MSMF al
+    # perder frames a medio uso. Se detecta con el mismo backend con el
+    # que luego se abre, para no numerar cámaras distinto entre ambos.
     for i in range(max_cameras):
-        cap = cv2.VideoCapture(i)
+        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
         if cap.isOpened() and cap.read()[0]:
             available.append(i)
             print(f"   Cámara {i} detectada")
