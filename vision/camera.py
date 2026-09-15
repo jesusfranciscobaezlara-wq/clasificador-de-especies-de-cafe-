@@ -63,8 +63,8 @@ class CameraSession:
 
         # ── Resiliencia ante fallos de la cámara (ver _try_recover) ──
         # El backend MSMF de Windows a veces deja de entregar frames a
-        # medio uso (error -1072873822 / 0xC00D3EA2, muy reportado con
-        # OpenCV en Windows) sin que la app se entere; antes, un ret=False
+        # medio uso (error -1072873822 / 0xC00D3EA2)
+        # sin que la app se entere; antes, un ret=False
         # se ignoraba en silencio para siempre y la ventana quedaba
         # congelada sin avisar. Ahora se cuenta, se avisa en pantalla y se
         # reintenta reabrir la cámara; si tras varios intentos sigue sin
